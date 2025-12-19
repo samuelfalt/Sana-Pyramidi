@@ -430,23 +430,23 @@
 
     function resetTiles() {
       pyramid.querySelectorAll(".tile").forEach(tile => {
-        tile.classList.remove("selected", "correct", "wrong", "missed", "solved");
-        tile.disabled = false;
-        tile.setAttribute("aria-pressed", "false");
+        const rowIndex = Number(tile.dataset.row);
+        const rowSolved = puzzleData[rowIndex].solved;
+        if (rowSolved) {
+          tile.classList.remove("selected", "wrong", "missed");
+          tile.classList.add("correct", "solved");
+          tile.disabled = true;
+          tile.setAttribute("aria-pressed", "false");
+        } else {
+          tile.classList.remove("selected", "correct", "wrong", "missed", "solved");
+          tile.disabled = false;
+          tile.setAttribute("aria-pressed", "false");
+        }
       });
-      puzzleData.forEach(row => {
-        row.solved = false;
-        row.moved = false;
-      });
-      document.querySelectorAll(".hint").forEach(hint => {
-        hint.classList.remove("revealed");
-        hint.classList.add("hidden");
-        hint.textContent = hint.dataset.placeholder;
-      });
-      levelsContainer.querySelectorAll(".level-words").forEach(el => (el.innerHTML = ""));
+      const solvedCorrect = puzzleData.filter(r => r.solved).reduce((acc, r) => acc + r.correctCount, 0);
       feedback.textContent = "";
       selectedCountEl.textContent = "0";
-      correctCountEl.textContent = `0/${totalCorrectWords}`;
+      correctCountEl.textContent = `${solvedCorrect}/${totalCorrectWords}`;
     }
 
     function shuffleUnsolved() {
