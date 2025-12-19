@@ -274,7 +274,6 @@
       <div class="controls">
         <button class="primary" id="check-button" type="button">Tarkasta</button>
         <button class="secondary" id="reset-button" type="button">Tyhjennä</button>
-        <button class="secondary" id="shuffle-button" type="button">Sekoita sanat</button>
       </div>
       <div id="feedback" class="feedback" aria-live="polite"></div>
     </header>
@@ -448,24 +447,6 @@
       correctCountEl.textContent = `${solvedWordCount}/${totalCorrectWords}`;
     }
 
-    function shuffleUnsolved() {
-      feedback.textContent = "";
-      for (let rowIndex = 0; rowIndex < initialRows.length; rowIndex++) {
-        const start = levelOffsets[rowIndex];
-        const len = rowIndex + 1;
-        const rowPos = [];
-        for (let i = 0; i < len; i++) rowPos.push(start + i);
-        const hasSolved = rowPos.some(idx => solvedPos[idx]);
-        if (hasSolved) continue;
-        for (let i = rowPos.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [positions[rowPos[i]], positions[rowPos[j]]] = [positions[rowPos[j]], positions[rowPos[i]]];
-        }
-        refreshRow(rowIndex, false);
-      }
-      updateSelectedCount();
-    }
-
     function revealHint(rowIndex) {
       const hint = document.getElementById(`hint-${rowIndex}`);
       if (!hint) return;
@@ -611,7 +592,6 @@
 
     document.getElementById("check-button").addEventListener("click", checkAnswers);
     document.getElementById("reset-button").addEventListener("click", resetTiles);
-    document.getElementById("shuffle-button").addEventListener("click", shuffleUnsolved);
 
     buildLevels();
     buildPyramid();
