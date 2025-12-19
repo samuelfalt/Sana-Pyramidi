@@ -292,41 +292,41 @@
       {
         hint: "Pink",
         words: [
-          { label: "Pink", correct: true }
+          { label: "PINK", correct: true }
         ]
       },
       {
         hint: "Kurssi anagram",
         words: [
-          { label: "Coms", correct: true },
-          { label: "Ymma", correct: true }
+          { label: "COMS", correct: true },
+          { label: "YMMA", correct: true }
         ]
       },
       {
         hint: "Kuumaa albumit",
         words: [
-          { label: "Keltainen", correct: true },
-          { label: "Sininen", correct: false },
-          { label: "Punainen", correct: true }
+          { label: "KELTAINEN", correct: true },
+          { label: "SININEN", correct: false },
+          { label: "PUNAINEN", correct: true }
         ]
       },
       {
         hint: "Uinti tyylit",
         words: [
-          { label: "Sammakko", correct: true },
-          { label: "Kissa", correct: false },
-          { label: "Koira", correct: true },
-          { label: "Delfiini", correct: true }
+          { label: "SAMMAKKO", correct: true },
+          { label: "KISSA", correct: false },
+          { label: "KOIRA", correct: true },
+          { label: "DELFIINI", correct: true }
         ]
       },
       {
         hint: "-mari",
         words: [
-          { label: "Ui", correct: true },
-          { label: "Tii", correct: true },
-          { label: "Kal", correct: true },
-          { label: "Kam", correct: true },
-          { label: "Tuo", correct: true }
+          { label: "UI", correct: true },
+          { label: "TII", correct: true },
+          { label: "KAL", correct: true },
+          { label: "KAM", correct: true },
+          { label: "TUO", correct: true }
         ]
       }
     ];
@@ -508,6 +508,8 @@
     function checkAnswers() {
       let correctSelections = 0;
       let anyWrong = false;
+      let extraSelections = false;
+      const totalSelected = currentSelectedCount();
 
       puzzleData.forEach((row, rowIndex) => {
         if (row.solved) {
@@ -524,11 +526,15 @@
 
         let rowHasWrong = false;
         let rowSelectedCorrect = 0;
+        let rowSelectedTotal = 0;
 
         row.words.forEach((word, wordIndex) => {
           const selector = `.tile[data-row="${rowIndex}"][data-index="${wordIndex}"]`;
           const tile = pyramid.querySelector(selector);
           const isSelected = tile.classList.contains("selected");
+          if (isSelected) {
+            rowSelectedTotal += 1;
+          }
 
           tile.classList.remove("correct", "wrong", "missed");
 
@@ -547,9 +553,14 @@
           }
         });
 
-        if (!rowHasWrong && rowSelectedCorrect === row.correctCount) {
+        const exactMatch = rowSelectedCorrect === row.correctCount && rowSelectedTotal === row.correctCount && totalSelected === row.correctCount;
+
+        if (!rowHasWrong && exactMatch) {
           row.solved = true;
           markSolvedRow(rowIndex);
+        } else if (!rowHasWrong && rowSelectedCorrect === row.correctCount && rowSelectedTotal === row.correctCount && totalSelected > row.correctCount) {
+          // correct words chosen but extra selections elsewhere
+          extraSelections = true;
         }
       });
 
@@ -560,7 +571,9 @@
       } else if (correctSelections === 0) {
         feedback.textContent = "Kokeile uudelleen – mikään valinta ei ollut oikein vielä.";
       } else {
-        feedback.textContent = "Osa meni oikein, mutta riveillä on vielä korjattavaa.";
+        feedback.textContent = extraSelections
+          ? "Valitse vain yhden kategorian sanat kerrallaan – nyt on ylimääräisiä valintoja."
+          : "Osa meni oikein, mutta riveillä on vielä korjattavaa.";
       }
     }
 
