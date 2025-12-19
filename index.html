@@ -291,44 +291,32 @@
     const puzzleData = [
       {
         hint: "Pink",
-        words: [
-          { label: "PINK", correct: true }
-        ]
+        correctWords: ["PINK"]
       },
       {
         hint: "Kurssi anagram",
-        words: [
-          { label: "COMS", correct: true },
-          { label: "YMMA", correct: true }
-        ]
+        correctWords: ["COMS", "YMMA"]
       },
       {
         hint: "Kuumaa albumit",
-        words: [
-          { label: "KELTAINEN", correct: true },
-          { label: "SININEN", correct: false },
-          { label: "PUNAINEN", correct: true }
-        ]
+        correctWords: ["KELTAINEN", "PUNAINEN"]
       },
       {
         hint: "Uinti tyylit",
-        words: [
-          { label: "SAMMAKKO", correct: true },
-          { label: "KISSA", correct: false },
-          { label: "KOIRA", correct: true },
-          { label: "DELFIINI", correct: true }
-        ]
+        correctWords: ["SAMMAKKO", "KOIRA", "DELFIINI"]
       },
       {
         hint: "-mari",
-        words: [
-          { label: "UI", correct: true },
-          { label: "TII", correct: true },
-          { label: "KAL", correct: true },
-          { label: "KAM", correct: true },
-          { label: "TUO", correct: true }
-        ]
+        correctWords: ["UI", "TII", "KAL", "KAM", "TUO"]
       }
+    ];
+
+    const initialRows = [
+      ["KAL"],
+      ["DELFIINI", "PINK"],
+      ["TUO", "SAMMAKKO", "SININEN"],
+      ["COMS", "KISSA", "KAM", "PUNAINEN"],
+      ["UI", "KELTAINEN", "KOIRA", "YMMA", "TII"]
     ];
 
     const pyramid = document.getElementById("pyramid");
@@ -337,15 +325,18 @@
     const correctCountEl = document.getElementById("correct-count");
     const levelsContainer = document.getElementById("levels");
 
-    puzzleData.forEach(row => {
-      row.correctCount = row.words.filter(w => w.correct).length;
-      row.solved = false;
-      row.moved = false;
+    const wordToCategory = new Map();
+    puzzleData.forEach((cat, index) => {
+      cat.correctCount = cat.correctWords.length;
+      cat.solved = false;
+      cat.correctWords.forEach(w => wordToCategory.set(w.toUpperCase(), index));
     });
 
     const totalCorrectWords = puzzleData.reduce((acc, row) => acc + row.correctCount, 0);
     const maxLevel = Math.max(...puzzleData.map(row => row.correctCount));
     const levelMap = new Map();
+    const replacementIndex = Array.from({ length: maxLevel }, () => 0);
+    let solvedWordCount = 0;
 
     function buildLevels() {
       levelsContainer.innerHTML = "";
@@ -370,7 +361,7 @@
 
     function buildPyramid() {
       pyramid.innerHTML = "";
-      puzzleData.forEach((row, rowIndex) => {
+      initialRows.forEach((rowWords, rowIndex) => {
         const rowEl = document.createElement("div");
         rowEl.className = "row";
 
@@ -378,7 +369,7 @@
         hint.className = "hint hidden";
         const placeholder = `${rowIndex + 1}. ????`;
         hint.textContent = placeholder;
-        hint.dataset.full = `${rowIndex + 1}. ${row.hint}`;
+        hint.dataset.full = `${rowIndex + 1}. ${puzzleData[rowIndex].hint}`;
         hint.dataset.placeholder = placeholder;
         hint.id = `hint-${rowIndex}`;
         rowEl.appendChild(hint);
@@ -386,13 +377,14 @@
         const tiles = document.createElement("div");
         tiles.className = "tiles";
 
-        row.words.forEach((word, wordIndex) => {
+        rowWords.forEach((word, wordIndex) => {
           const btn = document.createElement("button");
           btn.type = "button";
           btn.className = "tile";
-          btn.textContent = word.label;
+          btn.textContent = word;
           btn.dataset.row = rowIndex;
           btn.dataset.index = wordIndex;
+          btn.dataset.label = word;
           btn.setAttribute("aria-pressed", "false");
           btn.addEventListener("click", () => toggleTile(btn, rowIndex));
           tiles.appendChild(btn);
@@ -430,23 +422,13 @@
 
     function resetTiles() {
       pyramid.querySelectorAll(".tile").forEach(tile => {
-        const rowIndex = Number(tile.dataset.row);
-        const rowSolved = puzzleData[rowIndex].solved;
-        if (rowSolved) {
-          tile.classList.remove("selected", "wrong", "missed");
-          tile.classList.add("correct", "solved");
-          tile.disabled = true;
-          tile.setAttribute("aria-pressed", "false");
-        } else {
-          tile.classList.remove("selected", "correct", "wrong", "missed", "solved");
-          tile.disabled = false;
-          tile.setAttribute("aria-pressed", "false");
-        }
+        tile.classList.remove("selected", "correct", "wrong", "missed", "solved");
+        tile.disabled = false;
+        tile.setAttribute("aria-pressed", "false");
       });
-      const solvedCorrect = puzzleData.filter(r => r.solved).reduce((acc, r) => acc + r.correctCount, 0);
       feedback.textContent = "";
       selectedCountEl.textContent = "0";
-      correctCountEl.textContent = `${solvedCorrect}/${totalCorrectWords}`;
+      correctCountEl.textContent = `${solvedWordCount}/${totalCorrectWords}`;
     }
 
     function shuffleUnsolved() {
@@ -471,108 +453,77 @@
       hint.textContent = hint.dataset.full;
     }
 
-    function lockRow(rowIndex) {
-      const tiles = pyramid.querySelectorAll(`.tile[data-row="${rowIndex}"]`);
-      tiles.forEach(tile => {
-        tile.classList.add("correct", "solved");
-        tile.classList.remove("selected", "wrong", "missed");
-        tile.disabled = true;
+    function moveWordsToLevel(level, selectedTiles) {
+      const container = levelMap.get(level);
+      if (!container) return;
+      selectedTiles.forEach(tile => {
+        const bubble = document.createElement("div");
+        bubble.className = "tile correct";
+        bubble.textContent = tile.dataset.label.toUpperCase();
+        container.appendChild(bubble);
+      });
+    }
+
+    function replaceTilesWithLevelWords(selectedTiles, level) {
+      const pool = initialRows[level - 1];
+      if (!pool || pool.length === 0) return;
+      selectedTiles.forEach(tile => {
+        const idx = replacementIndex[level - 1] % pool.length;
+        const newWord = pool[idx];
+        replacementIndex[level - 1] += 1;
+        tile.textContent = newWord;
+        tile.dataset.label = newWord;
+        tile.classList.remove("selected", "correct", "wrong", "missed", "solved");
+        tile.disabled = false;
         tile.setAttribute("aria-pressed", "false");
       });
     }
 
-    function moveRowToLevel(rowIndex) {
-      const row = puzzleData[rowIndex];
-      if (row.moved) return;
-      const targetLevel = row.correctCount;
-      const container = levelMap.get(targetLevel);
-      if (!container) return;
-      row.words
-        .filter(word => word.correct)
-        .forEach(word => {
-          const tile = document.createElement("div");
-          tile.className = "tile correct";
-          tile.textContent = word.label;
-          container.appendChild(tile);
-        });
-      row.moved = true;
-    }
-
-    function markSolvedRow(rowIndex) {
-      revealHint(rowIndex);
-      lockRow(rowIndex);
-      moveRowToLevel(rowIndex);
-      updateSelectedCount();
-    }
-
     function checkAnswers() {
-      let correctSelections = 0;
-      let anyWrong = false;
-      let extraSelections = false;
+      const selectedTiles = Array.from(pyramid.querySelectorAll(".tile.selected"));
+      if (selectedTiles.length === 0) {
+        feedback.textContent = "Valitse ensin sanat ja yritä uudelleen.";
+        return;
+      }
 
-      puzzleData.forEach((row, rowIndex) => {
-        if (row.solved) {
-          correctSelections += row.correctCount;
-          const tiles = pyramid.querySelectorAll(`.tile[data-row="${rowIndex}"]`);
-          tiles.forEach((tile, idx) => {
-            const word = row.words[idx];
-            if (word.correct) {
-              tile.classList.add("correct", "solved");
-            }
-          });
-          return;
-        }
+      const selectedLabels = selectedTiles.map(t => t.dataset.label.toUpperCase());
+      let solvedCategoryIndex = null;
 
-        let rowHasWrong = false;
-        let rowSelectedCorrect = 0;
-
-        row.words.forEach((word, wordIndex) => {
-          const selector = `.tile[data-row="${rowIndex}"][data-index="${wordIndex}"]`;
-          const tile = pyramid.querySelector(selector);
-          const isSelected = tile.classList.contains("selected");
-
-          tile.classList.remove("correct", "wrong", "missed");
-
-          if (isSelected && word.correct) {
-            tile.classList.add("correct");
-            correctSelections += 1;
-            rowSelectedCorrect += 1;
-          } else if (isSelected && !word.correct) {
-            tile.classList.remove("selected");
-            tile.setAttribute("aria-pressed", "false");
-            rowHasWrong = true;
-            anyWrong = true;
-          } else if (!isSelected && word.correct) {
-            rowHasWrong = true;
-            anyWrong = true;
-          }
-        });
-
-        const rowSelectedNow = pyramid.querySelectorAll(`.tile[data-row="${rowIndex}"].selected`).length;
-        const totalSelectedNow = currentSelectedCount();
-        const exactMatch = rowSelectedCorrect === row.correctCount && rowSelectedNow === row.correctCount && totalSelectedNow === row.correctCount;
-
-        if (!rowHasWrong && exactMatch) {
-          row.solved = true;
-          markSolvedRow(rowIndex);
-        } else if (!rowHasWrong && rowSelectedCorrect === row.correctCount && rowSelectedNow === row.correctCount && totalSelectedNow > row.correctCount) {
-          // correct words chosen but extra selections elsewhere
-          extraSelections = true;
+      puzzleData.forEach((cat, idx) => {
+        if (cat.solved || solvedCategoryIndex !== null) return;
+        const catSet = new Set(cat.correctWords);
+        const selSet = new Set(selectedLabels);
+        const matchSize = selSet.size === catSet.size;
+        const exactMatch = matchSize && [...selSet].every(lbl => catSet.has(lbl));
+        if (exactMatch) {
+          solvedCategoryIndex = idx;
         }
       });
 
-      correctCountEl.textContent = `${correctSelections}/${totalCorrectWords}`;
-      updateSelectedCount();
-
-      if (!anyWrong && correctSelections === totalCorrectWords) {
-        feedback.textContent = "Täydellistä! Kaikki valinnat olivat oikein.";
-      } else if (correctSelections === 0) {
-        feedback.textContent = "Kokeile uudelleen – mikään valinta ei ollut oikein vielä.";
-      } else {
-        feedback.textContent = extraSelections
-          ? "Valitse vain yhden kategorian sanat kerrallaan – nyt on ylimääräisiä valintoja."
-          : "Osa meni oikein, mutta riveillä on vielä korjattavaa.";
+      if (solvedCategoryIndex === null) {
+        // wrong guess: clear selections back to base color
+        selectedTiles.forEach(tile => {
+          tile.classList.remove("selected", "correct");
+          tile.setAttribute("aria-pressed", "false");
+        });
+        feedback.textContent = "Ei aivan – valinta ei vastaa mitään kategoriaa.";
+        updateSelectedCount();
+        return;
       }
+
+      const cat = puzzleData[solvedCategoryIndex];
+      cat.solved = true;
+      solvedWordCount += cat.correctCount;
+      correctCountEl.textContent = `${solvedWordCount}/${totalCorrectWords}`;
+
+      revealHint(solvedCategoryIndex);
+      moveWordsToLevel(cat.correctWords.length, selectedTiles);
+      replaceTilesWithLevelWords(selectedTiles, cat.correctWords.length);
+
+      feedback.textContent = solvedWordCount === totalCorrectWords
+        ? "Täydellistä! Kaikki valinnat olivat oikein."
+        : "Kategoria ratkaistu – jatka seuraaviin.";
+      updateSelectedCount();
     }
 
     document.getElementById("check-button").addEventListener("click", checkAnswers);
