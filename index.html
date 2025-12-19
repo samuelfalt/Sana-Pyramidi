@@ -199,52 +199,6 @@
       color: var(--text-main);
     }
 
-    .solved-area {
-      margin-top: 28px;
-      padding-top: 12px;
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .solved-area h2 {
-      margin: 0 0 12px;
-      font-size: 18px;
-      color: var(--text-main);
-      letter-spacing: 0.3px;
-    }
-
-    .levels {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .level {
-      display: grid;
-      grid-template-columns: 110px 1fr;
-      gap: 10px;
-      align-items: center;
-    }
-
-    .level-label {
-      text-transform: uppercase;
-      font-size: 13px;
-      color: var(--muted);
-      letter-spacing: 0.5px;
-    }
-
-    .level-words {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .level-words .tile {
-      min-width: 80px;
-      cursor: default;
-      box-shadow: none;
-      border-color: rgba(255, 255, 255, 0.15);
-    }
-
     @media (max-width: 700px) {
       .row {
         grid-template-columns: 1fr;
@@ -280,10 +234,6 @@
 
     <section id="pyramid" class="pyramid" aria-label="Sanapyramidi"></section>
 
-    <div class="solved-area">
-      <h2>Koottu pyramidi</h2>
-      <div id="levels" class="levels" aria-live="polite"></div>
-    </div>
   </div>
 
   <script>
