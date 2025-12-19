@@ -477,10 +477,12 @@
 
       const selectedWords = selectedTiles.map(t => t.dataset.label);
       const levelWords = levelRowTiles.map(t => t.dataset.label);
+      const count = Math.min(selectedWords.length, levelWords.length);
 
-      // move level row words into the positions of the solved selection
+      // move level row words into the positions of the solved selection (1:1)
       selectedTiles.forEach((tile, idx) => {
-        const newWord = levelWords[idx % levelWords.length];
+        if (idx >= count) return;
+        const newWord = levelWords[idx];
         tile.textContent = newWord;
         tile.dataset.label = newWord;
         tile.classList.remove("selected", "correct", "wrong", "missed", "solved");
@@ -488,9 +490,10 @@
         tile.setAttribute("aria-pressed", "false");
       });
 
-      // move solved words into the level row
+      // move solved words into the level row (1:1) and lock/green
       levelRowTiles.forEach((tile, idx) => {
-        const newWord = selectedWords[idx % selectedWords.length];
+        if (idx >= count) return;
+        const newWord = selectedWords[idx];
         tile.textContent = newWord;
         tile.dataset.label = newWord;
         tile.classList.remove("selected", "wrong", "missed");
