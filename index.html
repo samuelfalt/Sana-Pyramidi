@@ -509,7 +509,6 @@
       let correctSelections = 0;
       let anyWrong = false;
       let extraSelections = false;
-      const totalSelected = currentSelectedCount();
 
       puzzleData.forEach((row, rowIndex) => {
         if (row.solved) {
@@ -526,15 +525,11 @@
 
         let rowHasWrong = false;
         let rowSelectedCorrect = 0;
-        let rowSelectedTotal = 0;
 
         row.words.forEach((word, wordIndex) => {
           const selector = `.tile[data-row="${rowIndex}"][data-index="${wordIndex}"]`;
           const tile = pyramid.querySelector(selector);
           const isSelected = tile.classList.contains("selected");
-          if (isSelected) {
-            rowSelectedTotal += 1;
-          }
 
           tile.classList.remove("correct", "wrong", "missed");
 
@@ -543,28 +538,31 @@
             correctSelections += 1;
             rowSelectedCorrect += 1;
           } else if (isSelected && !word.correct) {
-            tile.classList.add("wrong");
+            tile.classList.remove("selected");
+            tile.setAttribute("aria-pressed", "false");
             rowHasWrong = true;
             anyWrong = true;
           } else if (!isSelected && word.correct) {
-            tile.classList.add("missed");
             rowHasWrong = true;
             anyWrong = true;
           }
         });
 
-        const exactMatch = rowSelectedCorrect === row.correctCount && rowSelectedTotal === row.correctCount && totalSelected === row.correctCount;
+        const rowSelectedNow = pyramid.querySelectorAll(`.tile[data-row="${rowIndex}"].selected`).length;
+        const totalSelectedNow = currentSelectedCount();
+        const exactMatch = rowSelectedCorrect === row.correctCount && rowSelectedNow === row.correctCount && totalSelectedNow === row.correctCount;
 
         if (!rowHasWrong && exactMatch) {
           row.solved = true;
           markSolvedRow(rowIndex);
-        } else if (!rowHasWrong && rowSelectedCorrect === row.correctCount && rowSelectedTotal === row.correctCount && totalSelected > row.correctCount) {
+        } else if (!rowHasWrong && rowSelectedCorrect === row.correctCount && rowSelectedNow === row.correctCount && totalSelectedNow > row.correctCount) {
           // correct words chosen but extra selections elsewhere
           extraSelections = true;
         }
       });
 
       correctCountEl.textContent = `${correctSelections}/${totalCorrectWords}`;
+      updateSelectedCount();
 
       if (!anyWrong && correctSelections === totalCorrectWords) {
         feedback.textContent = "Täydellistä! Kaikki valinnat olivat oikein.";
