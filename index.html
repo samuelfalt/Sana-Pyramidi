@@ -126,6 +126,16 @@
       text-transform: uppercase;
       letter-spacing: 0.5px;
       width: 130px;
+      transition: color 160ms ease, opacity 160ms ease;
+    }
+
+    .hint.revealed {
+      color: var(--text-main);
+      opacity: 1;
+    }
+
+    .hint.hidden {
+      opacity: 0.65;
     }
 
     .tiles {
@@ -178,10 +188,61 @@
       outline-offset: 3px;
     }
 
+    .tile.solved {
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
     .feedback {
       margin-top: 12px;
       font-weight: 700;
       color: var(--text-main);
+    }
+
+    .solved-area {
+      margin-top: 28px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .solved-area h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+      color: var(--text-main);
+      letter-spacing: 0.3px;
+    }
+
+    .levels {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .level {
+      display: grid;
+      grid-template-columns: 110px 1fr;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .level-label {
+      text-transform: uppercase;
+      font-size: 13px;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+    }
+
+    .level-words {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .level-words .tile {
+      min-width: 80px;
+      cursor: default;
+      box-shadow: none;
+      border-color: rgba(255, 255, 255, 0.15);
     }
 
     @media (max-width: 700px) {
@@ -218,6 +279,11 @@
     </header>
 
     <section id="pyramid" class="pyramid" aria-label="Sanapyramidi"></section>
+
+    <div class="solved-area">
+      <h2>Koottu pyramidi</h2>
+      <div id="levels" class="levels" aria-live="polite"></div>
+    </div>
   </div>
 
   <script>
@@ -268,6 +334,38 @@
     const feedback = document.getElementById("feedback");
     const selectedCountEl = document.getElementById("selected-count");
     const correctCountEl = document.getElementById("correct-count");
+    const levelsContainer = document.getElementById("levels");
+
+    puzzleData.forEach(row => {
+      row.correctCount = row.words.filter(w => w.correct).length;
+      row.solved = false;
+      row.moved = false;
+    });
+
+    const totalCorrectWords = puzzleData.reduce((acc, row) => acc + row.correctCount, 0);
+    const maxLevel = Math.max(...puzzleData.map(row => row.correctCount));
+    const levelMap = new Map();
+
+    function buildLevels() {
+      levelsContainer.innerHTML = "";
+      for (let i = 1; i <= maxLevel; i++) {
+        const levelEl = document.createElement("div");
+        levelEl.className = "level";
+        levelEl.dataset.level = i;
+
+        const label = document.createElement("div");
+        label.className = "level-label";
+        label.textContent = `Taso ${i}`;
+
+        const wordsWrap = document.createElement("div");
+        wordsWrap.className = "level-words";
+        levelMap.set(i, wordsWrap);
+
+        levelEl.appendChild(label);
+        levelEl.appendChild(wordsWrap);
+        levelsContainer.appendChild(levelEl);
+      }
+    }
 
     function buildPyramid() {
       pyramid.innerHTML = "";
@@ -276,8 +374,12 @@
         rowEl.className = "row";
 
         const hint = document.createElement("div");
-        hint.className = "hint";
-        hint.textContent = `${rowIndex + 1}. ${row.hint}`;
+        hint.className = "hint hidden";
+        const placeholder = `${rowIndex + 1}. ????`;
+        hint.textContent = placeholder;
+        hint.dataset.full = `${rowIndex + 1}. ${row.hint}`;
+        hint.dataset.placeholder = placeholder;
+        hint.id = `hint-${rowIndex}`;
         rowEl.appendChild(hint);
 
         const tiles = document.createElement("div");
@@ -291,7 +393,7 @@
           btn.dataset.row = rowIndex;
           btn.dataset.index = wordIndex;
           btn.setAttribute("aria-pressed", "false");
-          btn.addEventListener("click", () => toggleTile(btn));
+          btn.addEventListener("click", () => toggleTile(btn, rowIndex));
           tiles.appendChild(btn);
         });
 
@@ -300,7 +402,10 @@
       });
     }
 
-    function toggleTile(tile) {
+    function toggleTile(tile, rowIndex) {
+      if (puzzleData[rowIndex].solved) {
+        return;
+      }
       tile.classList.toggle("selected");
       tile.classList.remove("correct", "wrong", "missed");
       const isSelected = tile.classList.contains("selected");
@@ -316,47 +421,118 @@
 
     function resetTiles() {
       pyramid.querySelectorAll(".tile").forEach(tile => {
-        tile.classList.remove("selected", "correct", "wrong", "missed");
+        tile.classList.remove("selected", "correct", "wrong", "missed", "solved");
+        tile.disabled = false;
         tile.setAttribute("aria-pressed", "false");
       });
+      puzzleData.forEach(row => {
+        row.solved = false;
+        row.moved = false;
+      });
+      document.querySelectorAll(".hint").forEach(hint => {
+        hint.classList.remove("revealed");
+        hint.classList.add("hidden");
+        hint.textContent = hint.dataset.placeholder;
+      });
+      levelsContainer.querySelectorAll(".level-words").forEach(el => (el.innerHTML = ""));
       feedback.textContent = "";
       selectedCountEl.textContent = "0";
-      correctCountEl.textContent = "0";
+      correctCountEl.textContent = `0/${totalCorrectWords}`;
+    }
+
+    function revealHint(rowIndex) {
+      const hint = document.getElementById(`hint-${rowIndex}`);
+      if (!hint) return;
+      hint.classList.remove("hidden");
+      hint.classList.add("revealed");
+      hint.textContent = hint.dataset.full;
+    }
+
+    function lockRow(rowIndex) {
+      const tiles = pyramid.querySelectorAll(`.tile[data-row="${rowIndex}"]`);
+      tiles.forEach(tile => {
+        tile.classList.add("correct", "solved");
+        tile.classList.remove("selected", "wrong", "missed");
+        tile.disabled = true;
+        tile.setAttribute("aria-pressed", "false");
+      });
+    }
+
+    function moveRowToLevel(rowIndex) {
+      const row = puzzleData[rowIndex];
+      if (row.moved) return;
+      const targetLevel = row.correctCount;
+      const container = levelMap.get(targetLevel);
+      if (!container) return;
+      row.words
+        .filter(word => word.correct)
+        .forEach(word => {
+          const tile = document.createElement("div");
+          tile.className = "tile correct";
+          tile.textContent = word.label;
+          container.appendChild(tile);
+        });
+      row.moved = true;
+    }
+
+    function markSolvedRow(rowIndex) {
+      revealHint(rowIndex);
+      lockRow(rowIndex);
+      moveRowToLevel(rowIndex);
+      updateSelectedCount();
     }
 
     function checkAnswers() {
       let correctSelections = 0;
-      let totalCorrect = 0;
       let anyWrong = false;
 
       puzzleData.forEach((row, rowIndex) => {
+        if (row.solved) {
+          correctSelections += row.correctCount;
+          const tiles = pyramid.querySelectorAll(`.tile[data-row="${rowIndex}"]`);
+          tiles.forEach((tile, idx) => {
+            const word = row.words[idx];
+            if (word.correct) {
+              tile.classList.add("correct", "solved");
+            }
+          });
+          return;
+        }
+
+        let rowHasWrong = false;
+        let rowSelectedCorrect = 0;
+
         row.words.forEach((word, wordIndex) => {
           const selector = `.tile[data-row="${rowIndex}"][data-index="${wordIndex}"]`;
           const tile = pyramid.querySelector(selector);
           const isSelected = tile.classList.contains("selected");
-
-          if (word.correct) {
-            totalCorrect += 1;
-          }
 
           tile.classList.remove("correct", "wrong", "missed");
 
           if (isSelected && word.correct) {
             tile.classList.add("correct");
             correctSelections += 1;
+            rowSelectedCorrect += 1;
           } else if (isSelected && !word.correct) {
             tile.classList.add("wrong");
+            rowHasWrong = true;
             anyWrong = true;
           } else if (!isSelected && word.correct) {
             tile.classList.add("missed");
+            rowHasWrong = true;
             anyWrong = true;
           }
         });
+
+        if (!rowHasWrong && rowSelectedCorrect === row.correctCount) {
+          row.solved = true;
+          markSolvedRow(rowIndex);
+        }
       });
 
-      correctCountEl.textContent = `${correctSelections}/${totalCorrect}`;
+      correctCountEl.textContent = `${correctSelections}/${totalCorrectWords}`;
 
-      if (!anyWrong && correctSelections === totalCorrect) {
+      if (!anyWrong && correctSelections === totalCorrectWords) {
         feedback.textContent = "Täydellistä! Kaikki valinnat olivat oikein.";
       } else if (correctSelections === 0) {
         feedback.textContent = "Kokeile uudelleen – mikään valinta ei ollut oikein vielä.";
@@ -368,7 +544,9 @@
     document.getElementById("check-button").addEventListener("click", checkAnswers);
     document.getElementById("reset-button").addEventListener("click", resetTiles);
 
+    buildLevels();
     buildPyramid();
+    correctCountEl.textContent = `0/${totalCorrectWords}`;
   </script>
 </body>
 </html>
