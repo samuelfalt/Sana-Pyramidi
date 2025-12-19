@@ -515,24 +515,40 @@
       const count = Math.min(selectedPos.length, targetPositions.length);
 
       const selectedWords = selectedPos.map(p => positions[p]);
-      const targetWords = targetPositions.map(p => positions[p]);
-
+      const selectedSet = new Set(selectedWords);
       const nextPositions = positions.slice();
+      const displaced = [];
 
-      for (let i = 0; i < count; i++) {
-        nextPositions[targetPositions[i]] = selectedWords[i];
-        nextPositions[selectedPos[i]] = targetWords[i];
-      }
+      // Fill target positions with selected words, keeping already-correct words in place
+      const remainingSelected = [...selectedWords];
+      targetPositions.forEach((posIdx, i) => {
+        if (i >= count) return;
+        const currentWord = positions[posIdx];
+        if (selectedSet.has(currentWord)) {
+          // keep it here, consume from remainingSelected
+          const rm = remainingSelected.indexOf(currentWord);
+          if (rm !== -1) remainingSelected.splice(rm, 1);
+          nextPositions[posIdx] = currentWord;
+        } else {
+          const newWord = remainingSelected.shift();
+          displaced.push(currentWord);
+          nextPositions[posIdx] = newWord;
+        }
+        solvedPos[posIdx] = true;
+      });
+
+      // Move displaced words back into the original selected positions (outside target)
+      let dispIndex = 0;
+      selectedPos.forEach(posIdx => {
+        if (targetPositions.includes(posIdx)) {
+          return;
+        }
+        const newWord = displaced[dispIndex++];
+        nextPositions[posIdx] = newWord;
+        solvedPos[posIdx] = false;
+      });
 
       positions.splice(0, positions.length, ...nextPositions);
-
-      // mark solved for target positions we filled; unsolved for the ones we pulled from
-      for (let i = 0; i < targetPositions.length; i++) {
-        solvedPos[targetPositions[i]] = i < count;
-      }
-      selectedPos.forEach(p => {
-        if (!targetPositions.includes(p)) solvedPos[p] = false;
-      });
 
       // refresh affected rows
       const rowsToRefresh = new Set([...selectedPos, ...targetPositions].map(posToRow));
