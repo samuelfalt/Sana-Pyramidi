@@ -514,21 +514,24 @@
       const selectedPos = selectedTiles.map(t => Number(t.dataset.pos));
       const count = Math.min(selectedPos.length, targetPositions.length);
 
-      // swap state values
+      const selectedWords = selectedPos.map(p => positions[p]);
+      const targetWords = targetPositions.map(p => positions[p]);
+
+      const nextPositions = positions.slice();
+
       for (let i = 0; i < count; i++) {
-        const a = selectedPos[i];
-        const b = targetPositions[i];
-        [positions[a], positions[b]] = [positions[b], positions[a]];
+        nextPositions[targetPositions[i]] = selectedWords[i];
+        nextPositions[selectedPos[i]] = targetWords[i];
       }
 
-      // mark target positions solved, selected positions unsolved
-      targetPositions.forEach((idx, i) => {
-        if (i < count) solvedPos[idx] = true;
-      });
-      selectedPos.forEach(idx => {
-        if (!targetPositions.includes(idx)) {
-          solvedPos[idx] = false;
-        }
+      positions.splice(0, positions.length, ...nextPositions);
+
+      // mark solved for target positions we filled; unsolved for the ones we pulled from
+      for (let i = 0; i < targetPositions.length; i++) {
+        solvedPos[targetPositions[i]] = i < count;
+      }
+      selectedPos.forEach(p => {
+        if (!targetPositions.includes(p)) solvedPos[p] = false;
       });
 
       // refresh affected rows
