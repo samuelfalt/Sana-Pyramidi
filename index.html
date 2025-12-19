@@ -491,8 +491,9 @@
         const newWord = selectedWords[idx % selectedWords.length];
         tile.textContent = newWord;
         tile.dataset.label = newWord;
-        tile.classList.remove("selected", "correct", "wrong", "missed", "solved");
-        tile.disabled = false;
+        tile.classList.remove("selected", "wrong", "missed");
+        tile.classList.add("correct", "solved");
+        tile.disabled = true;
         tile.setAttribute("aria-pressed", "false");
       });
     }
