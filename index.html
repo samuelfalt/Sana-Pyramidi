@@ -433,16 +433,20 @@
 
     function shuffleUnsolved() {
       feedback.textContent = "";
-      pyramid.querySelectorAll(".row").forEach((rowEl, rowIndex) => {
-        if (puzzleData[rowIndex].solved) return;
-        const tilesWrap = rowEl.querySelector(".tiles");
-        const tiles = Array.from(tilesWrap.children);
-        for (let i = tiles.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
-        }
-        tiles.forEach(tile => tilesWrap.appendChild(tile));
+      const tiles = Array.from(pyramid.querySelectorAll(".tile"));
+      const labels = tiles.map(t => t.dataset.label);
+      for (let i = labels.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [labels[i], labels[j]] = [labels[j], labels[i]];
+      }
+      tiles.forEach((tile, idx) => {
+        tile.textContent = labels[idx];
+        tile.dataset.label = labels[idx];
+        tile.classList.remove("selected", "correct", "wrong", "missed", "solved");
+        tile.disabled = false;
+        tile.setAttribute("aria-pressed", "false");
       });
+      updateSelectedCount();
     }
 
     function revealHint(rowIndex) {
