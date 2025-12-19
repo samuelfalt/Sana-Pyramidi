@@ -318,7 +318,18 @@
       ["COMS", "KISSA", "KAM", "PUNAINEN"],
       ["UI", "KELTAINEN", "KOIRA", "YMMA", "TII"]
     ];
-    let currentRows = initialRows.map(row => [...row]);
+
+    const levelOffsets = [0, 1, 3, 6, 10];
+    const levelPositions = [
+      [0],
+      [1, 2],
+      [3, 4, 5],
+      [6, 7, 8, 9],
+      [10, 11, 12, 13, 14]
+    ];
+
+    const positions = initialRows.flat(); // length 15
+    const solvedPos = Array(15).fill(false);
 
     const pyramid = document.getElementById("pyramid");
     const feedback = document.getElementById("feedback");
@@ -362,7 +373,7 @@
 
     function buildPyramid() {
       pyramid.innerHTML = "";
-      currentRows.forEach((rowWords, rowIndex) => {
+      for (let rowIndex = 0; rowIndex < initialRows.length; rowIndex++) {
         const rowEl = document.createElement("div");
         rowEl.className = "row";
 
@@ -378,26 +389,31 @@
         const tiles = document.createElement("div");
         tiles.className = "tiles";
 
-        rowWords.forEach((word, wordIndex) => {
+        const start = levelOffsets[rowIndex];
+        const len = rowIndex + 1;
+        for (let i = 0; i < len; i++) {
+          const posIndex = start + i;
+          const word = positions[posIndex];
           const btn = document.createElement("button");
           btn.type = "button";
           btn.className = "tile";
           btn.textContent = word;
           btn.dataset.row = rowIndex;
-          btn.dataset.index = wordIndex;
+          btn.dataset.index = i;
+          btn.dataset.pos = posIndex;
           btn.dataset.label = word;
           btn.setAttribute("aria-pressed", "false");
-          btn.addEventListener("click", () => toggleTile(btn, rowIndex));
+          btn.addEventListener("click", () => toggleTile(btn, rowIndex, posIndex));
           tiles.appendChild(btn);
-        });
+        }
 
         rowEl.appendChild(tiles);
         pyramid.appendChild(rowEl);
-      });
+      }
     }
 
-    function toggleTile(tile, rowIndex) {
-      if (puzzleData[rowIndex].solved) {
+    function toggleTile(tile, rowIndex, posIndex) {
+      if (puzzleData[rowIndex].solved || solvedPos[posIndex]) {
         return;
       }
       const selecting = !tile.classList.contains("selected");
@@ -434,16 +450,19 @@
 
     function shuffleUnsolved() {
       feedback.textContent = "";
-      pyramid.querySelectorAll(".row").forEach((rowEl, rowIndex) => {
-        if (puzzleData[rowIndex].solved) return;
-        const tiles = Array.from(rowEl.querySelectorAll(".tile"));
-        const words = currentRows[rowIndex];
-        for (let i = words.length - 1; i > 0; i--) {
+      for (let rowIndex = 0; rowIndex < initialRows.length; rowIndex++) {
+        const start = levelOffsets[rowIndex];
+        const len = rowIndex + 1;
+        const rowPos = [];
+        for (let i = 0; i < len; i++) rowPos.push(start + i);
+        const hasSolved = rowPos.some(idx => solvedPos[idx]);
+        if (hasSolved) continue;
+        for (let i = rowPos.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
-          [words[i], words[j]] = [words[j], words[i]];
+          [positions[rowPos[i]], positions[rowPos[j]]] = [positions[rowPos[j]], positions[rowPos[i]]];
         }
         refreshRow(rowIndex, false);
-      });
+      }
       updateSelectedCount();
     }
 
@@ -468,12 +487,14 @@
 
     function refreshRow(rowIndex, lockSolved) {
       const buttons = Array.from(pyramid.querySelectorAll(`.tile[data-row="${rowIndex}"]`));
-      const words = currentRows[rowIndex];
+      const start = levelOffsets[rowIndex];
       buttons.forEach((btn, idx) => {
-        const word = words[idx];
+        const posIndex = start + idx;
+        const word = positions[posIndex];
         btn.textContent = word;
         btn.dataset.label = word;
-        if (lockSolved) {
+        btn.dataset.pos = posIndex;
+        if (lockSolved || solvedPos[posIndex]) {
           btn.classList.remove("selected", "wrong", "missed");
           btn.classList.add("correct", "solved");
           btn.disabled = true;
@@ -486,35 +507,33 @@
       });
     }
 
-    function swapWithLevelRow(level, selectedTiles, levelIndex) {
-      const levelRowIndex = level - 1;
-      const levelWords = currentRows[levelRowIndex];
-      if (!levelWords || levelWords.length === 0) return;
+    function swapWithLevelRow(level, selectedTiles) {
+      const targetPositions = levelPositions[level - 1];
+      if (!targetPositions) return;
 
-      const selectedWords = selectedTiles.map(t => t.dataset.label);
-      const count = Math.min(selectedWords.length, levelWords.length);
+      const selectedPos = selectedTiles.map(t => Number(t.dataset.pos));
+      const count = Math.min(selectedPos.length, targetPositions.length);
 
-      // move level row words into the positions of the solved selection (1:1) in state
-      selectedTiles.forEach((tile, idx) => {
-        if (idx >= count) return;
-        const newWord = levelWords[idx];
-        const r = Number(tile.dataset.row);
-        const c = Number(tile.dataset.index);
-        currentRows[r][c] = newWord;
-      });
-
-      // move solved words into the level row state (1:1)
+      // swap state values
       for (let i = 0; i < count; i++) {
-        levelWords[i] = selectedWords[i];
+        const a = selectedPos[i];
+        const b = targetPositions[i];
+        [positions[a], positions[b]] = [positions[b], positions[a]];
       }
 
-      // refresh involved rows
-      const rowsToRefresh = new Set(selectedTiles.map(t => Number(t.dataset.row)));
-      rowsToRefresh.forEach(r => {
-        const lock = puzzleData[r].solved;
-        refreshRow(r, lock);
+      // mark target positions solved, selected positions unsolved
+      targetPositions.forEach((idx, i) => {
+        if (i < count) solvedPos[idx] = true;
       });
-      refreshRow(levelRowIndex, true);
+      selectedPos.forEach(idx => {
+        if (!targetPositions.includes(idx)) {
+          solvedPos[idx] = false;
+        }
+      });
+
+      // refresh affected rows
+      const rowsToRefresh = new Set([...selectedPos, ...targetPositions].map(posToRow));
+      rowsToRefresh.forEach(r => refreshRow(r, false));
     }
 
     function checkAnswers() {
@@ -556,12 +575,19 @@
 
       revealHint(solvedCategoryIndex);
       moveWordsToLevel(cat.correctWords.length, selectedTiles);
-      swapWithLevelRow(cat.correctWords.length, selectedTiles, solvedCategoryIndex);
+      swapWithLevelRow(cat.correctWords.length, selectedTiles);
 
       feedback.textContent = solvedWordCount === totalCorrectWords
         ? "Täydellistä! Kaikki valinnat olivat oikein."
         : "Kategoria ratkaistu – jatka seuraaviin.";
       updateSelectedCount();
+    }
+
+    function posToRow(posIndex) {
+      for (let r = levelOffsets.length - 1; r >= 0; r--) {
+        if (posIndex >= levelOffsets[r]) return r;
+      }
+      return 0;
     }
 
     document.getElementById("check-button").addEventListener("click", checkAnswers);
