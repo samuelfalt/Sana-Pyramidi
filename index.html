@@ -274,6 +274,7 @@
       <div class="controls">
         <button class="primary" id="check-button" type="button">Tarkasta</button>
         <button class="secondary" id="reset-button" type="button">Tyhjennä</button>
+        <button class="secondary" id="shuffle-button" type="button">Sekoita sanat</button>
       </div>
       <div id="feedback" class="feedback" aria-live="polite"></div>
     </header>
@@ -406,6 +407,11 @@
       if (puzzleData[rowIndex].solved) {
         return;
       }
+      const selecting = !tile.classList.contains("selected");
+      if (selecting && currentSelectedCount() >= 5) {
+        feedback.textContent = "Voit valita enintään 5 sanaa kerrallaan.";
+        return;
+      }
       tile.classList.toggle("selected");
       tile.classList.remove("correct", "wrong", "missed");
       const isSelected = tile.classList.contains("selected");
@@ -414,9 +420,12 @@
       updateSelectedCount();
     }
 
+    function currentSelectedCount() {
+      return pyramid.querySelectorAll(".tile.selected").length;
+    }
+
     function updateSelectedCount() {
-      const selected = pyramid.querySelectorAll(".tile.selected").length;
-      selectedCountEl.textContent = selected;
+      selectedCountEl.textContent = currentSelectedCount();
     }
 
     function resetTiles() {
@@ -438,6 +447,20 @@
       feedback.textContent = "";
       selectedCountEl.textContent = "0";
       correctCountEl.textContent = `0/${totalCorrectWords}`;
+    }
+
+    function shuffleUnsolved() {
+      feedback.textContent = "";
+      pyramid.querySelectorAll(".row").forEach((rowEl, rowIndex) => {
+        if (puzzleData[rowIndex].solved) return;
+        const tilesWrap = rowEl.querySelector(".tiles");
+        const tiles = Array.from(tilesWrap.children);
+        for (let i = tiles.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+        }
+        tiles.forEach(tile => tilesWrap.appendChild(tile));
+      });
     }
 
     function revealHint(rowIndex) {
@@ -543,6 +566,7 @@
 
     document.getElementById("check-button").addEventListener("click", checkAnswers);
     document.getElementById("reset-button").addEventListener("click", resetTiles);
+    document.getElementById("shuffle-button").addEventListener("click", shuffleUnsolved);
 
     buildLevels();
     buildPyramid();
