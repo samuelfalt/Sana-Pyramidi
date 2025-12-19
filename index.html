@@ -318,6 +318,7 @@
       ["COMS", "KISSA", "KAM", "PUNAINEN"],
       ["UI", "KELTAINEN", "KOIRA", "YMMA", "TII"]
     ];
+    let currentRows = initialRows.map(row => [...row]);
 
     const pyramid = document.getElementById("pyramid");
     const feedback = document.getElementById("feedback");
@@ -361,7 +362,7 @@
 
     function buildPyramid() {
       pyramid.innerHTML = "";
-      initialRows.forEach((rowWords, rowIndex) => {
+      currentRows.forEach((rowWords, rowIndex) => {
         const rowEl = document.createElement("div");
         rowEl.className = "row";
 
@@ -435,18 +436,13 @@
       feedback.textContent = "";
       pyramid.querySelectorAll(".row").forEach((rowEl, rowIndex) => {
         if (puzzleData[rowIndex].solved) return;
-        const tilesWrap = rowEl.querySelector(".tiles");
-        const tiles = Array.from(tilesWrap.children);
-        for (let i = tiles.length - 1; i > 0; i--) {
+        const tiles = Array.from(rowEl.querySelectorAll(".tile"));
+        const words = currentRows[rowIndex];
+        for (let i = words.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
-          [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+          [words[i], words[j]] = [words[j], words[i]];
         }
-        tiles.forEach(tile => {
-          tile.classList.remove("selected", "correct", "wrong", "missed", "solved");
-          tile.disabled = false;
-          tile.setAttribute("aria-pressed", "false");
-          tilesWrap.appendChild(tile);
-        });
+        refreshRow(rowIndex, false);
       });
       updateSelectedCount();
     }
@@ -470,37 +466,55 @@
       });
     }
 
-    function swapWithLevelRow(level, selectedTiles) {
+    function refreshRow(rowIndex, lockSolved) {
+      const buttons = Array.from(pyramid.querySelectorAll(`.tile[data-row="${rowIndex}"]`));
+      const words = currentRows[rowIndex];
+      buttons.forEach((btn, idx) => {
+        const word = words[idx];
+        btn.textContent = word;
+        btn.dataset.label = word;
+        if (lockSolved) {
+          btn.classList.remove("selected", "wrong", "missed");
+          btn.classList.add("correct", "solved");
+          btn.disabled = true;
+          btn.setAttribute("aria-pressed", "false");
+        } else {
+          btn.classList.remove("selected", "correct", "wrong", "missed", "solved");
+          btn.disabled = false;
+          btn.setAttribute("aria-pressed", "false");
+        }
+      });
+    }
+
+    function swapWithLevelRow(level, selectedTiles, levelIndex) {
       const levelRowIndex = level - 1;
-      const levelRowTiles = Array.from(pyramid.querySelectorAll(`.tile[data-row="${levelRowIndex}"]`));
-      if (levelRowTiles.length === 0) return;
+      const levelWords = currentRows[levelRowIndex];
+      if (!levelWords || levelWords.length === 0) return;
 
       const selectedWords = selectedTiles.map(t => t.dataset.label);
-      const levelWords = levelRowTiles.map(t => t.dataset.label);
       const count = Math.min(selectedWords.length, levelWords.length);
 
-      // move level row words into the positions of the solved selection (1:1)
+      // move level row words into the positions of the solved selection (1:1) in state
       selectedTiles.forEach((tile, idx) => {
         if (idx >= count) return;
         const newWord = levelWords[idx];
-        tile.textContent = newWord;
-        tile.dataset.label = newWord;
-        tile.classList.remove("selected", "correct", "wrong", "missed", "solved");
-        tile.disabled = false;
-        tile.setAttribute("aria-pressed", "false");
+        const r = Number(tile.dataset.row);
+        const c = Number(tile.dataset.index);
+        currentRows[r][c] = newWord;
       });
 
-      // move solved words into the level row (1:1) and lock/green
-      levelRowTiles.forEach((tile, idx) => {
-        if (idx >= count) return;
-        const newWord = selectedWords[idx];
-        tile.textContent = newWord;
-        tile.dataset.label = newWord;
-        tile.classList.remove("selected", "wrong", "missed");
-        tile.classList.add("correct", "solved");
-        tile.disabled = true;
-        tile.setAttribute("aria-pressed", "false");
+      // move solved words into the level row state (1:1)
+      for (let i = 0; i < count; i++) {
+        levelWords[i] = selectedWords[i];
+      }
+
+      // refresh involved rows
+      const rowsToRefresh = new Set(selectedTiles.map(t => Number(t.dataset.row)));
+      rowsToRefresh.forEach(r => {
+        const lock = puzzleData[r].solved;
+        refreshRow(r, lock);
       });
+      refreshRow(levelRowIndex, true);
     }
 
     function checkAnswers() {
@@ -542,7 +556,7 @@
 
       revealHint(solvedCategoryIndex);
       moveWordsToLevel(cat.correctWords.length, selectedTiles);
-      swapWithLevelRow(cat.correctWords.length, selectedTiles);
+      swapWithLevelRow(cat.correctWords.length, selectedTiles, solvedCategoryIndex);
 
       feedback.textContent = solvedWordCount === totalCorrectWords
         ? "Täydellistä! Kaikki valinnat olivat oikein."
