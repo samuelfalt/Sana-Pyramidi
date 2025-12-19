@@ -6,18 +6,18 @@
   <title>Sana pyramidi</title>
   <style>
     :root {
-      --bg-start: #0c1a2c;
-      --bg-end: #10263a;
-      --panel: #122c46;
-      --tile: #163859;
-      --tile-border: rgba(255, 255, 255, 0.08);
+      --bg-start: #5fa8e0;
+      --bg-end: #9be7ff;
+      --panel: #e8f5ff;
+      --tile: #d8ecff;
+      --tile-border: rgba(12, 26, 44, 0.08);
       --tile-selected: #f08c00;
       --tile-selected-text: #0c1a2c;
       --tile-correct: #2ebf91;
       --tile-wrong: #d7263d;
-      --text-main: #e8eef7;
-      --muted: #9cb5d9;
-      --shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
+      --text-main: #0c1a2c;
+      --muted: #3f5a78;
+      --shadow: 0 14px 40px rgba(12, 26, 44, 0.15);
     }
 
     * {
@@ -30,7 +30,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: radial-gradient(circle at 15% 20%, #1a3252, #0c1a2c 45%), linear-gradient(160deg, var(--bg-start), var(--bg-end));
+      background: radial-gradient(circle at 20% 25%, #cdeaff, #9be7ff 40%), linear-gradient(145deg, var(--bg-start), var(--bg-end));
       color: var(--text-main);
       font-family: "Trebuchet MS", "Futura", "Baskerville", sans-serif;
       padding: 40px 16px;
@@ -39,7 +39,7 @@
     .card {
       width: min(1200px, 100%);
       background: var(--panel);
-      border: 1px solid rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(12, 26, 44, 0.08);
       border-radius: 18px;
       padding: 28px clamp(18px, 4vw, 36px) 32px;
       box-shadow: var(--shadow);
