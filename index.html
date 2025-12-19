@@ -468,13 +468,27 @@
       });
     }
 
-    function replaceTilesWithLevelWords(selectedTiles, level) {
-      const pool = initialRows[level - 1];
-      if (!pool || pool.length === 0) return;
-      selectedTiles.forEach(tile => {
-        const idx = replacementIndex[level - 1] % pool.length;
-        const newWord = pool[idx];
-        replacementIndex[level - 1] += 1;
+    function swapWithLevelRow(level, selectedTiles) {
+      const levelRowIndex = level - 1;
+      const levelRowTiles = Array.from(pyramid.querySelectorAll(`.tile[data-row="${levelRowIndex}"]`));
+      if (levelRowTiles.length === 0) return;
+
+      const selectedWords = selectedTiles.map(t => t.dataset.label);
+      const levelWords = levelRowTiles.map(t => t.dataset.label);
+
+      // move level row words into the positions of the solved selection
+      selectedTiles.forEach((tile, idx) => {
+        const newWord = levelWords[idx % levelWords.length];
+        tile.textContent = newWord;
+        tile.dataset.label = newWord;
+        tile.classList.remove("selected", "correct", "wrong", "missed", "solved");
+        tile.disabled = false;
+        tile.setAttribute("aria-pressed", "false");
+      });
+
+      // move solved words into the level row
+      levelRowTiles.forEach((tile, idx) => {
+        const newWord = selectedWords[idx % selectedWords.length];
         tile.textContent = newWord;
         tile.dataset.label = newWord;
         tile.classList.remove("selected", "correct", "wrong", "missed", "solved");
@@ -522,7 +536,7 @@
 
       revealHint(solvedCategoryIndex);
       moveWordsToLevel(cat.correctWords.length, selectedTiles);
-      replaceTilesWithLevelWords(selectedTiles, cat.correctWords.length);
+      swapWithLevelRow(cat.correctWords.length, selectedTiles);
 
       feedback.textContent = solvedWordCount === totalCorrectWords
         ? "Täydellistä! Kaikki valinnat olivat oikein."
